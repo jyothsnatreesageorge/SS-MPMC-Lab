@@ -1,0 +1,128 @@
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+int main()
+{
+   FILE *f1,*f2,*f3,*f4,*f5,*f6;
+   f1=fopen("intermediate.txt","r");
+   f2=fopen("length.txt","r");
+   f3=fopen("optab.txt","r");
+   f4=fopen("symtab.txt","r");
+   f5=fopen("listing.txt","w");
+   f6=fopen("objcode.txt","w");
+   if(!f1||!f2||!f3||!f4||!f5||!f6)
+   {
+      printf("Error in opening files!\n");
+      return -1;
+   }
+   char
+label[10],opcode[10],operand[10],opcode1[10],operand1[10],address[10],sym[10],add[10],t_start[10],objcode[1024]="",l1[10],start[10];
+   int tlen,found;
+   fscanf(f1,"%s%s%s",label,opcode,operand);
+   //fprintf(f5,"%s\t%s\t%s\n",label,opcode,operand);
+   if(strcmp(opcode,"START")==0)
+   {
+      fscanf(f2,"%s",l1);
+      strcpy(start,operand);
+      fprintf(f5,"%s\t%s\t%s\n",label,opcode,operand);
+      fprintf(f6,"H^%-6s^%s^%s\n",label,start,l1);
+      fscanf(f1,"%s%s%s%s",address,label,opcode,operand);
+   }
+   strcpy(t_start,address);
+   tlen=0;
+   strcpy(objcode,"");
+   while(strcmp(opcode,"END")!=0)
+   {
+      rewind(f3);
+      found=0;
+      int ff1=0,ff2=0;
+      char temp[100]="";
+      while((fscanf(f3,"%s%s",opcode1,operand1)!=EOF)&&(ff2==0))
+      {
+         if(strcmp(opcode,opcode1)==0)
+         {
+            rewind(f4);
+            while((fscanf(f4,"%s%s",add,sym)!=EOF)&&(ff1==0))
+            {
+                if(strcmp(operand,sym)==0)
+                {
+                   sprintf(temp,"%s%s",operand1,add);
+                   found=1;
+                   ff1=1;
+                   fprintf(f5,"%s\t%s\t%s\t%s\t%s\n",address,label,opcode,operand,temp);
+                   //break;
+                }
+            }
+              ff2=1;
+            //break;
+         }
+      }
+      if(!found)
+      {
+         if(strcmp(opcode,"WORD")==0)
+         {
+            sprintf(temp,"%06X",atoi(operand));
+            fprintf(f5,"%s\t%s\t%s\t%s\t%s\n",address,label,opcode,operand,temp);
+         }
+         if(strcmp(opcode,"BYTE")==0)
+         {
+            if(operand[0]=='C')
+            {
+               char hex[5];
+               for(int i=2;i<strlen(operand)-1;i++)
+               {
+                  sprintf(hex,"%02X",operand[i]);
+                  strcat(temp,hex);
+               }
+            }
+            else if(operand[0]=='X')
+            {
+               strncpy(temp,operand+2,strlen(operand)-3);
+               temp[strlen(operand)-3]='\0';
+            }
+            fprintf(f5,"%s\t%s\t%s\t%s\t%s\n",address,label,opcode,operand,temp);
+         }
+         if((strcmp(opcode,"RESW")==0)||(strcmp(opcode,"RESB")==0))
+         {
+            if(tlen>0)
+            {
+               fprintf(f6,"T^%s^%02X^%s\n",t_start,tlen,objcode);
+               tlen=0;
+               strcpy(objcode,"");
+            }
+            fprintf(f5,"%s\t%s\t%s\t%s\t%s\n",address,label,opcode,operand,objcode);
+            fscanf(f1,"%s%s%s%s",address,label,opcode,operand);
+            strcpy(t_start,address);
+            continue;
+         }
+      }
+      if(strlen(temp)>0)
+      {
+         if(tlen+strlen(temp)/2>30)
+         {
+            fprintf(f6,"T^%S^%02X6%s",t_start,tlen,objcode);
+            fprintf(f5,"%s\t%s\t%s\t%s\t%s\n",address,label,opcode,operand,objcode);
+            tlen=0;
+            strcpy(t_start,address);
+            strcpy(objcode,"");
+         }
+         strcat(objcode,temp);
+         strcat(objcode,"^");
+         tlen+=strlen(temp)/2;
+      }
+      fscanf(f1,"%s%s%s%s",address,label,opcode,operand);
+   }
+   if(tlen>0)
+   {
+      fprintf(f6,"T^%s^%02X^%s",t_start,tlen,objcode);
+   }
+   fprintf(f6,"E^%s",start);
+   fprintf(f5,"%s\t%s\t%s\t%s\t%s\n",address,label,opcode,operand,objcode);
+   fclose(f1);
+   fclose(f2);
+   fclose(f3);
+   fclose(f4);
+   fclose(f5);
+   fclose(f6);
+   return 0;
+}
